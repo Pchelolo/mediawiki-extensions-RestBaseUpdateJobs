@@ -1,0 +1,5 @@
+The Services Team:
+* Gabriel Wicke <gwicke@wikimedia.org>
+* Marko Obrovac <mobrovac@wikimedia.org>
+* James Earl Douglas <jdouglas@wikimedia.org>
+

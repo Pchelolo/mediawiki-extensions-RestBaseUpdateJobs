@@ -1,0 +1,9 @@
+{
+	"@metadata": {
+		"authors": [
+			"Marko Obrovac"
+		]
+	},
+	"restbase-desc": "Extension pour la mise à jour du contenu de RESTBase"
+}
+
