@@ -45,7 +45,7 @@ class RestbaseUpdateSetup {
 			),
 			'version' => '0.2.0',
 			'url' => 'https://www.mediawiki.org/wiki/Extension:RestbaseUpdateJobs',
-			'descriptionmsg' => 'restbase-desc',
+			'descriptionmsg' => 'restbaseupdatejobs-desc',
 			'license-name' => 'GPL-2.0+',
 		);
 
