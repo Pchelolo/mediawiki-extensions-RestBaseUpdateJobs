@@ -1,7 +1,7 @@
 <?php
 
 /**
- * HTML cache refreshing and -invalidation job for the Parsoid varnish caches.
+ * HTML cache refreshing and -invalidation job for RESTBase.
  *
  * This job comes in a few variants:
  *   - a) Recursive jobs to purge caches for backlink pages for a given title.
@@ -10,9 +10,6 @@
  *	      They have have (type:OnDependencyChange,pages:(<page ID>:(<namespace>,<title>),...) set.
  *   - c) Jobs to purge caches for a single page (the job title)
  *        They have (type:OnEdit) set.
- *
- * See
- * http://www.mediawiki.org/wiki/Parsoid/Minimal_performance_strategy_for_July_release
  */
 class RestbaseUpdateJob extends Job {
 
@@ -35,21 +32,77 @@ class RestbaseUpdateJob extends Job {
 	}
 
 
-	function run() {
+	/**
+	 * Constructs the URL prefix for RESTBase and caches it
+	 * @return string RESTBase's URL prefix
+	 */
+	private static function getRestbasePrefix() {
 
-		// for now we are capable of handling only OnEdit jobs
-		if ( $this->params['type'] !== 'OnEdit' ) {
-			return true;
+		static $prefix = null;
+		// set the static variable so as not to construct
+		// the prefix URL every time
+		if ( is_null( $prefix ) ) {
+			global $wgRestbaseServer, $wgRestbaseAPIVersion,
+				$wgRestbaseDomain, $wgServer;
+			if ( !isset( $wgRestbaseDomain ) || is_null( $wgRestbaseDomain ) ) {
+				$wgRestbaseDomain = preg_replace( '/^(https?:\/\/)?(.+?)\/?$/', '$2', $wgServer );
+			}
+			$prefix = implode( '/', array(
+				$wgRestbaseServer,
+				$wgRestbaseDomain,
+				$wgRestbaseAPIVersion
+			) );
 		}
+
+		return $prefix;
+
+	}
+
+
+	/**
+	 * Construct a revision ID invalidation URL
+	 *
+	 * @param $revid integer the revision ID to invalidate
+	 * @return string an absolute URL for the revision
+	 */
+	private static function getRevisionURL( $revid ) {
+
+		// construct the URL
+		return implode( '/', array( self::getRestbasePrefix(),
+			'page', 'revision', $revid ) );
+
+	}
+
+
+	/**
+	 * Construct a page title invalidation URL
+	 *
+	 * @param $title Title
+	 * @param $revid integer the revision ID to use
+	 * @return string an absolute URL for the article
+	 */
+	private static function getPageTitleURL( Title $title, $revid ) {
+
+		// construct the URL
+		return implode( '/', array( self::getRestbasePrefix(), 'page',
+			'html', wfUrlencode( $title->getPrefixedDBkey() ), $revid ) );
+
+	}
+
+
+	function run() {
 
 		global $wgRestbaseUpdateTitlesPerJob, $wgUpdateRowsPerJob;
 
-
-
 		if ( $this->params['type'] === 'OnEdit' ) {
-			// this is the simple case, resolve it
-			// TODO
-			$this->invalidateTitle( $this->title );
+			// there are two cases here:
+			// a) this is a rev_visibility action
+			// b) this is some type of a page edit
+			if ( $this->params['mode'] === 'rev_visibility' ) {
+				$this->signalRevChange();
+			} else {
+				$this->invalidateTitle();
+			}
 		} elseif ( $this->params['type'] === 'OnDependencyChange' ) {
 			// recursive update of linked pages
 			static $expected = array( 'recursive', 'pages' ); // new jobs have one of these
@@ -60,7 +113,7 @@ class RestbaseUpdateJob extends Job {
 			// Job to purge all (or a range of) backlink pages for a page
 			if ( !empty( $this->params['recursive'] ) ) {
 				// Convert this into some title-batch jobs and possibly a
-				// recursive ParsoidCacheUpdateJob job for the rest of the backlinks
+				// recursive RestbaseUpdateJob job for the rest of the backlinks
 				$jobs = BacklinkJobUtils::partitionBacklinkJob(
 					$this,
 					$wgUpdateRowsPerJob,
@@ -68,8 +121,7 @@ class RestbaseUpdateJob extends Job {
 					// Carry over information for de-duplication
 					array(
 						'params' => $this->getRootJobParams() + array(
-							'table' => $this->params['table'], 'type' => 'OnDependencyChange',
-							'extra' => $this->params['extra'] )
+							'table' => $this->params['table'], 'type' => 'OnDependencyChange' )
 					)
 				);
 				JobQueueGroup::singleton()->push( $jobs );
@@ -79,139 +131,126 @@ class RestbaseUpdateJob extends Job {
 		}
 
 		return true;
+
 	}
 
-	/**
-	 * Construct a cache server URL
-	 *
-	 * @param $title Title
-	 * @param string $server the server name
-	 * @param bool $prev use previous revision id if true
-	 * @return string an absolute URL for the article on the given server
-	 */
-	protected function getParsoidURL( Title $title, $server, $prev = false ) {
-		global $wgParsoidWikiPrefix;
-
-		$oldid = $prev ?
-			$title->getPreviousRevisionID( $title->getLatestRevID() ) :
-			$title->getLatestRevID();
-
-		// Construct Parsoid web service URL
-		return $server . '/' . $wgParsoidWikiPrefix . '/' .
-			wfUrlencode( $title->getPrefixedDBkey() ) . '?oldid=' . $oldid;
-	}
 
 	/**
-	 * Check an array of CurlMultiClient results for errors, and setLastError
-	 * if there are any.
-	 * @param $results CurlMultiClient result array
+	 * Dispatches the request(s) using MultiHttpClient, waits for the result(s),
+	 * checks them and sets the error flag if needed
+	 * @param $reqs array an array of request maps to dispatch
+	 * @return boolean whether all of the requests have been executed successfully
 	 */
-	protected function checkCurlResults( $results ) {
-		foreach( $results as $k => $result ) {
-			if ($results[$k]['error'] != null) {
-				$this->setLastError($results[$k]['error']);
+	protected function dispatchRequests( array $reqs ) {
+
+		// create a new MultiHttpClient instance with default params
+		$http = new MultiHttpClient( array( 'maxConnsPerHost' => count( $reqs ) ) );
+
+		// send the requests and wait for responses
+		$reqs = $http->runMulti( $reqs );
+
+		// check for errors
+		foreach( $reqs as $k => $arr ) {
+			if ( $reqs[$k]['response']['error'] != '' ) {
+				$this->setLastError( $reqs[$k]['response']['error'] );
 				return false;
 			}
 		}
+
+		// ok, all good
 		return true;
+
 	}
 
+
 	/**
-	 * Invalidate a single title object after an edit. Send headers that let
-	 * Parsoid reuse transclusion and extension expansions.
-	 * @param $title Title
+	 * Signals to RESTBase a change has happened in the
+	 * visibility of a revision
 	 */
-	protected function invalidateTitle( Title $title ) {
-		global $wgParsoidCacheServers;
+	protected function signalRevChange() {
 
-		# First request the new version
-		$parsoidInfo = array();
-		$parsoidInfo['cacheID'] = $title->getPreviousRevisionID( $title->getLatestRevID() );
-		$parsoidInfo['changedTitle'] = $this->title->getPrefixedDBkey();
-
+		// construct the requests
 		$requests = array();
-		foreach ( $wgParsoidCacheServers as $server ) {
+		foreach( $this->params['revs'] as $revid ) {
 			$requests[] = array(
-				'url'     => $this->getParsoidURL( $title, $server ),
+				'method' => 'GET',
+				'url' => self::getRevisionURL( $revid ),
 				'headers' => array(
-					'X-Parsoid: ' . json_encode( $parsoidInfo ),
-					// Force implicit cache refresh similar to
-					// https://www.varnish-cache.org/trac/wiki/VCLExampleEnableForceRefresh
 					'Cache-control: no-cache'
 				)
 			);
 		}
-		wfDebug( "ParsoidCacheUpdateJob::invalidateTitle: " . serialize( $requests ) . "\n" );
-		$this->checkCurlResults( CurlMultiClient::request( $requests ) );
 
-		# And now purge the previous revision so that we make efficient use of
-		# the Varnish cache space without relying on LRU. Since the URL
-		# differs we can't use implicit refresh.
-		$requests = array();
-		foreach ( $wgParsoidCacheServers as $server ) {
-			// @TODO: this triggers a getPreviousRevisionID() query per server
-			$requests[] = array(
-				'url' => $this->getParsoidURL( $title, $server, true )
-			);
-		}
-		$options = CurlMultiClient::getDefaultOptions();
-		$options[CURLOPT_CUSTOMREQUEST] = "PURGE";
-		$this->checkCurlResults( CurlMultiClient::request( $requests, $options ) );
+		// dispatch the requests
+		///wfDebug( "RestbaseUpdateJob::signalRevChange: " . json_encode( $requests ) . "\n" );
+		$this->dispatchRequests( $requests );
+
 		return $this->getLastError() == null;
+
 	}
 
 
 	/**
-	 * Invalidate an array (or iterator) of Title objects, right now. Send
-	 * headers that signal Parsoid which of transclusions or extensions need
-	 * to be updated.
+	 * Invalidate a single title object after an edit. Send headers that let
+	 * RESTBase/Parsoid reuse transclusion and extension expansions.
+	 */
+	protected function invalidateTitle() {
+
+		$title = $this->title;
+		$latest = $title->getLatestRevID();
+		$previous = $title->getPreviousRevisionID( $latest );
+
+		$requests = array( array(
+			'method' => 'GET',
+			'url'     => self::getPageTitleURL( $title, $latest ),
+			'headers' => array(
+				'X-Restbase-ParentRevision: ' . $previous,
+				'Cache-control: no-cache'
+			)
+		) );
+		///wfDebug( "RestbaseUpdateJob::invalidateTitle: " . json_encode( $requests ) . "\n" );
+		$this->dispatchRequests( $requests );
+
+		return $this->getLastError() == null;
+
+	}
+
+
+	/**
+	 * Invalidate an array (or iterator) of Title objects, right now.
 	 * @param $pages array (page ID => (namespace, DB key)) mapping
 	 */
 	protected function invalidateTitles( array $pages ) {
-		global $wgParsoidCacheServers, $wgLanguageCode;
 
-		if ( !isset( $wgParsoidCacheServers ) ) {
-			$wgParsoidCacheServers = array( 'localhost' );
-		}
-
-		# Re-render
-		$parsoidInfo = array();
-
-		# Pass some useful info to Parsoid
-		$parsoidInfo['changedTitle'] = $this->title->getPrefixedDBkey();
-		$parsoidInfo['mode'] = $this->params['table'] == 'templatelinks' ?
+		$mode = $this->params['table'] == 'templatelinks' ?
 			'templates' : 'files';
 
-		# Build an array of update requests
+		// Build an array of update requests
 		$requests = array();
-		foreach ( $wgParsoidCacheServers as $server ) {
-			foreach ( $pages as $id => $nsDbKey ) {
-				$title = Title::makeTitle( $nsDbKey[0], $nsDbKey[1] );
-				# TODO, but low prio: if getLatestRevID returns 0, only purge title (deletion).
-				# Low prio because VE would normally refuse to load the page
-				# anyway, and no private info is exposed.
-				$url = $this->getParsoidURL( $title, $server );
-
-				$parsoidInfo['cacheID'] = $title->getLatestRevID();
-
-				$requests[] = array(
-					'url'     => $url,
-					'headers' => array(
-						'X-Parsoid: ' . json_encode( $parsoidInfo ),
-						// Force implicit cache refresh similar to
-						// https://www.varnish-cache.org/trac/wiki/VCLExampleEnableForceRefresh
-						'Cache-control: no-cache'
-					)
-				);
-			}
+		foreach ( $pages as $id => $nsDbKey ) {
+			$title = Title::makeTitle( $nsDbKey[0], $nsDbKey[1] );
+			$latest = $title->getLatestRevID();
+			$url = self::getPageTitleURL( $title, $latest );
+			$requests[] = array(
+				'method' => 'GET',
+				'url'     => $url,
+				'headers' => array(
+					'X-Restbase-Mode: ' . $mode,
+					'Cache-control: no-cache'
+				)
+			);
 		}
 
 		// Now send off all those update requests
-		$this->checkCurlResults( CurlMultiClient::request( $requests ) );
+		$this->dispatchRequests( $requests );
 
-		wfDebug( 'ParsoidCacheUpdateJob::invalidateTitles update: ' .
-			serialize( $requests ) . "\n" );
+		//wfDebug( 'RestbaseUpdateJob::invalidateTitles update: ' .
+		//	json_encode( $requests ) . "\n" );
 
 		return $this->getLastError() == null;
+
 	}
+
+
 }
+
