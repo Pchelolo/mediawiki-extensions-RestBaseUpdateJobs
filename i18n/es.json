@@ -1,8 +1,9 @@
 {
 	"@metadata": {
 		"authors": [
-			"Marko Obrovac"
+			"Marko Obrovac",
+			"Macofe"
 		]
 	},
-	"restbaseupdatejobs-desc": "Extensione para actualizar el contenido de RESTBase"
+	"restbaseupdatejobs-desc": "Extensión para actualizar RESTBase"
 }
