@@ -1,8 +1,9 @@
 {
 	"@metadata": {
 		"authors": [
-			"Marko Obrovac"
+			"Marko Obrovac",
+			"Metalhead64"
 		]
 	},
-	"restbaseupdatejobs-desc": "Erweiterung für aktualisieren RESTBase"
+	"restbaseupdatejobs-desc": "Ergänzt eine Erweiterung zum Aktualisieren von RESTBase-Aufgaben"
 }
