@@ -27,31 +27,27 @@ class RestbaseUpdateSetup {
 		# Set up class autoloading
 		$wgAutoloadClasses['RestbaseUpdateHooks'] = "$dir/RestbaseUpdate.hooks.php";
 		$wgAutoloadClasses['RestbaseUpdateJob'] = "$dir/RestbaseUpdateJob.php";
-		$wgAutoloadClasses['CurlMultiClient'] = "$dir/CurlMultiClient.php";
 
-		# Add the parsoid job types
+		# Add the job types
 		$wgJobClasses['RestbaseUpdateJobOnEdit'] = 'RestbaseUpdateJob';
 		$wgJobClasses['RestbaseUpdateJobOnDependencyChange'] = 'RestbaseUpdateJob';
-		# Old type for transition
-		# @TODO: remove when old jobs are drained
-		$wgJobClasses['RestabseUpdateJob'] = 'RestbaseUpdateJob';
 
 		$wgExtensionCredits['other'][] = array(
 			'path' => __FILE__,
-			'name' => 'RestbaseUpdate',
+			'name' => 'RestBaseUpdateJobs',
 			'author' => array(
 				'Gabriel Wicke',
 				'Marko Obrovac'
 			),
 			'version' => '0.2.0',
-			'url' => 'https://www.mediawiki.org/wiki/Extension:RestbaseUpdateJobs',
+			'url' => 'https://www.mediawiki.org/wiki/Extension:RestBaseUpdateJobs',
 			'descriptionmsg' => 'restbaseupdatejobs-desc',
 			'license-name' => 'GPL-2.0+',
 		);
 
 		# Register localizations.
-		$wgMessagesDirs['RestbaseUpdateJobs'] = __DIR__ . '/i18n';
-		$wgExtensionMessagesFiles['RestbaseUpdateJobs'] = $dir . '/RestbaseUpdate.i18n.php';
+		$wgMessagesDirs['RestBaseUpdateJobs'] = __DIR__ . '/i18n';
+		$wgExtensionMessagesFiles['RestBaseUpdateJobs'] = $dir . '/RestbaseUpdate.i18n.php';
 
 		# Set up a default configuration
 		self::setupDefaultConfig();
@@ -69,7 +65,7 @@ class RestbaseUpdateSetup {
 	 */
 	protected static function setupDefaultConfig() {
 
-		global $wgRestbaseServers, $wgRestbaseDomain, $wgServer;
+		global $wgRestbaseServer, $wgRestbaseAPIVersion, $wgRestbaseUpdateTitlesPerJob;
 
 		/**
 		 * The RESTBase server to inform of updates.
@@ -77,10 +73,14 @@ class RestbaseUpdateSetup {
 		$wgRestbaseServers = 'http://localhost:7321';
 
 		/**
-		 * This wiki's domain.
-		 * Defaults to $wgServer's domain name
-		*/
-		$wgRestbaseDomain = preg_replace( '/^(https?:\/\/)?(.+?)\/?$/', '$2', $wgServer );
+		 * The RESTBase API version in use
+		 */
+		$wgRestbaseAPIVersion = 'v1';
+
+		/**
+		 * The number of recursive jobs to process in parallel
+		 */
+		$wgRestbaseUpdateTitlesPerJob = 50;
 
 	}
 
@@ -103,11 +103,14 @@ class RestbaseUpdateSetup {
 		$wgHooks['ArticleRevisionVisibilitySet'][] = 'RestbaseUpdateHooks::onArticleRevisionVisibilitySet';
 		# Article move
 		$wgHooks['TitleMoveComplete'][] = 'RestbaseUpdateHooks::onTitleMoveComplete';
+		# File upload
+		$wgHooks['FileUpload'][] = 'RestbaseUpdateHooks::onFileUpload';
 
 	}
 
 
 }
+
 
 # Load hooks that are always set
 RestbaseUpdateSetup::setup();
