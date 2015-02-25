@@ -47,7 +47,6 @@ class RestbaseUpdateSetup {
 
 		# Register localizations.
 		$wgMessagesDirs['RestBaseUpdateJobs'] = __DIR__ . '/i18n';
-		$wgExtensionMessagesFiles['RestBaseUpdateJobs'] = $dir . '/RestbaseUpdate.i18n.php';
 
 		# Set up a default configuration
 		self::setupDefaultConfig();
