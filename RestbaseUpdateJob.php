@@ -43,9 +43,13 @@ class RestbaseUpdateJob extends Job {
 		// the prefix URL every time
 		if ( is_null( $prefix ) ) {
 			global $wgRestbaseServer, $wgRestbaseAPIVersion,
-				$wgRestbaseDomain, $wgServer;
+				$wgRestbaseDomain, $wgCanonicalServer;
 			if ( !isset( $wgRestbaseDomain ) || is_null( $wgRestbaseDomain ) ) {
-				$wgRestbaseDomain = preg_replace( '/^(https?:\/\/)?(.+?)\/?$/', '$2', $wgServer );
+				$wgRestbaseDomain = preg_replace(
+					'/^(https?:\/\/)?([^\/:]+?)(\/|:\d+\/?)?$/',
+					'$2',
+					$wgCanonicalServer
+				);
 			}
 			$prefix = implode( '/', array(
 				$wgRestbaseServer,
