@@ -39,7 +39,7 @@ class RestbaseUpdateSetup {
 				'Gabriel Wicke',
 				'Marko Obrovac'
 			),
-			'version' => '0.2.0',
+			'version' => '0.2.1',
 			'url' => 'https://www.mediawiki.org/wiki/Extension:RestBaseUpdateJobs',
 			'descriptionmsg' => 'restbaseupdatejobs-desc',
 			'license-name' => 'GPL-2.0+',

@@ -1,0 +1,9 @@
+{
+	"@metadata": {
+		"authors": [
+			"Marko Obrovac"
+		]
+	},
+	"restbaseupdatejobs-desc": "Ekstenzija za ažuriranje sadržaja RESTBase API servisa"
+}
+

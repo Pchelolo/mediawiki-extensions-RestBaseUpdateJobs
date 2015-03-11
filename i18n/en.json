@@ -4,6 +4,6 @@
 			"Marko Obrovac"
 		]
 	},
-	"restbaseupdatejobs-desc": "RESTBase update job extension"
+	"restbaseupdatejobs-desc": "An extension for updating the RESTBase API service with revision changes"
 }
 
