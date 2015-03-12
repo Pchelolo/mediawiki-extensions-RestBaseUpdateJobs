@@ -148,7 +148,7 @@ class RestbaseUpdateHooks {
 	 */
 	public static function onFileUpload( File $file ) {
 
-		self::updateTitle( $file->getTitle(), 'file' );
+		self::schedule( $file->getTitle(), 'file' );
 		return true;
 
 	}
