@@ -89,7 +89,7 @@ class RestbaseUpdateJob extends Job {
 
 		// construct the URL
 		return implode( '/', array( self::getRestbasePrefix(), 'page',
-			'html', wfUrlencode( $title->getPrefixedDBkey() ), $revid ) );
+			'html', urlencode( $title->getPrefixedDBkey() ), $revid ) );
 
 	}
 
