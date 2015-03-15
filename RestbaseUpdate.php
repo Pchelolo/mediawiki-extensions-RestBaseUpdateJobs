@@ -69,7 +69,7 @@ class RestbaseUpdateSetup {
 		/**
 		 * The RESTBase server to inform of updates.
 		*/
-		$wgRestbaseServer = 'http://localhost:7321';
+		$wgRestbaseServer = 'http://localhost:7231';
 
 		/**
 		 * The RESTBase API version in use
