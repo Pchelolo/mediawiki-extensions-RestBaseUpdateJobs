@@ -180,7 +180,7 @@ class RestbaseUpdateJob extends Job {
 				'method' => 'GET',
 				'url' => self::getRevisionURL( $revid ),
 				'headers' => array(
-					'Cache-control: no-cache'
+					'Cache-control' => 'no-cache'
 				)
 			);
 		}
@@ -208,8 +208,8 @@ class RestbaseUpdateJob extends Job {
 			'method' => 'GET',
 			'url'     => self::getPageTitleURL( $title, $latest ),
 			'headers' => array(
-				'X-Restbase-ParentRevision: ' . $previous,
-				'Cache-control: no-cache'
+				'X-Restbase-ParentRevision' => $previous,
+				'Cache-control' => 'no-cache'
 			)
 		) );
 		///wfDebug( "RestbaseUpdateJob::invalidateTitle: " . json_encode( $requests ) . "\n" );
@@ -239,8 +239,8 @@ class RestbaseUpdateJob extends Job {
 				'method' => 'GET',
 				'url'     => $url,
 				'headers' => array(
-					'X-Restbase-Mode: ' . $mode,
-					'Cache-control: no-cache'
+					'X-Restbase-Mode' => $mode,
+					'Cache-control' => 'no-cache'
 				)
 			);
 		}
