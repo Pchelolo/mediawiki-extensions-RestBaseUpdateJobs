@@ -18,7 +18,7 @@ class RestbaseUpdateHooks {
 	 */
 	private static function getJobParams( Title $title, $type, $table = null ) {
 
-		$params = array( 'type' => $type );
+		$params = array( 'type' => $type, 'ts' => time() );
 		if ( $type == 'OnDependencyChange' ) {
 			$params['table'] = $table;
 			$params['recursive'] = true;

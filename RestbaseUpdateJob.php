@@ -23,11 +23,8 @@ class RestbaseUpdateJob extends Job {
 
 		parent::__construct( 'RestbaseUpdateJob' . $params['type'], $title, $params, $id );
 
-		if ( $params['type'] == 'OnEdit' ) {
-			// Simple duplicate removal for single-title jobs. Other jobs are
-			// deduplicated with root job parameters.
-			$this->removeDuplicates = true;
-		}
+		// enable duplication detection for all jobs
+		$this->removeDuplicates = true;
 
 	}
 
@@ -94,9 +91,31 @@ class RestbaseUpdateJob extends Job {
 	}
 
 
-	function run() {
+	/**
+	 * Gets the info needed to determine equality between two jobs.
+	 *
+	 * @return array Map of key/values
+	 * @since 1.21
+	 */
+	public function getDeduplicationInfo() {
 
-		global $wgRestbaseUpdateTitlesPerJob, $wgUpdateRowsPerJob;
+		$info = parent::getDeduplicationInfo();
+
+		if ( is_array( $info['params'] ) ) {
+			// ignore the original job time stamp
+			unset( $info['params']['ts'] );
+		}
+
+		return $info;
+
+	}
+
+
+	public function run() {
+
+		global $wgRestbaseUpdateTitlesPerJob, $wgUpdateRowsPerJob, $wgRestbaseNoMinThrottle;
+
+		$noJobs = $wgRestbaseUpdateTitlesPerJob;
 
 		if ( $this->params['type'] === 'OnEdit' ) {
 			// there are two cases here:
@@ -116,16 +135,29 @@ class RestbaseUpdateJob extends Job {
 			}
 			// Job to purge all (or a range of) backlink pages for a page
 			if ( !empty( $this->params['recursive'] ) ) {
+				// if there is no range defined, we are about to create
+				// a root partition job
+				if ( !isset( $this->params['range'] ) ) {
+					// how many backlinks does this title have ?
+					$noLinks = $this->getTitle()->getBacklinkCache()->getNumLinks( $this->params['table'] );
+					if( $noLinks <= $wgRestbaseNoMinThrottle ) {
+						// there is only a small number of jobs, so batch them all together
+						$noJobs = $noLinks;
+					}
+				}
 				// Convert this into some title-batch jobs and possibly a
 				// recursive RestbaseUpdateJob job for the rest of the backlinks
 				$jobs = BacklinkJobUtils::partitionBacklinkJob(
 					$this,
 					$wgUpdateRowsPerJob,
-					$wgRestbaseUpdateTitlesPerJob, // jobs-per-title
+					$noJobs, // jobs-per-title
 					// Carry over information for de-duplication
 					array(
 						'params' => $this->getRootJobParams() + array(
-							'table' => $this->params['table'], 'type' => 'OnDependencyChange' )
+							'table' => $this->params['table'],
+							'type' => 'OnDependencyChange',
+							'ts' => $this->params['ts']
+						)
 					)
 				);
 				JobQueueGroup::singleton()->push( $jobs );
@@ -209,6 +241,7 @@ class RestbaseUpdateJob extends Job {
 			'url'     => self::getPageTitleURL( $title, $latest ),
 			'headers' => array(
 				'X-Restbase-ParentRevision' => $previous,
+				'X-Restbase-Timestamp' => $this->params['ts'],
 				'Cache-control' => 'no-cache'
 			)
 		) );
@@ -240,6 +273,7 @@ class RestbaseUpdateJob extends Job {
 				'url'     => $url,
 				'headers' => array(
 					'X-Restbase-Mode' => $mode,
+					'X-Restbase-Timestamp' => $this->params['ts'],
 					'Cache-control' => 'no-cache'
 				)
 			);

@@ -79,7 +79,14 @@ class RestbaseUpdateSetup {
 		/**
 		 * The number of recursive jobs to process in parallel
 		 */
-		$wgRestbaseUpdateTitlesPerJob = 50;
+		$wgRestbaseUpdateTitlesPerJob = 4;
+
+		/**
+		* The minimum number of jobs considered to be a 'big update'. If the number
+		* of actual jobs is lower than this threshold, all of the jobs will be processed
+		* a a single job partition.
+		*/
+		$wgRestbaseNoMinThrottle = 20;
 
 	}
 
