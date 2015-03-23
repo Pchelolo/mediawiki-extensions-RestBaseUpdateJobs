@@ -139,7 +139,12 @@ class RestbaseUpdateJob extends Job {
 				// a root partition job
 				if ( !isset( $this->params['range'] ) ) {
 					// how many backlinks does this title have ?
-					$noLinks = $this->getTitle()->getBacklinkCache()->getNumLinks( $this->params['table'] );
+					$backlinkCache = $this->getTitle()->getBacklinkCache();
+					$noLinks = $backlinkCache->getNumLinks(
+						$this->params['table'],
+						// No need to count all
+						$wgRestbaseNoMinThrottle + 1
+					);
 					if( $noLinks <= $wgRestbaseNoMinThrottle ) {
 						// there is only a small number of jobs, so batch them all together
 						$noJobs = $noLinks;
