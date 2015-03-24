@@ -246,7 +246,7 @@ class RestbaseUpdateJob extends Job {
 			'url'     => self::getPageTitleURL( $title, $latest ),
 			'headers' => array(
 				'X-Restbase-ParentRevision' => $previous,
-				'X-Restbase-Timestamp' => $this->params['ts'],
+				'If-Unmodified-Since' => date( 'r', intval( $this->params['ts'] ) ),
 				'Cache-control' => 'no-cache'
 			)
 		) );
@@ -278,7 +278,7 @@ class RestbaseUpdateJob extends Job {
 				'url'     => $url,
 				'headers' => array(
 					'X-Restbase-Mode' => $mode,
-					'X-Restbase-Timestamp' => $this->params['ts'],
+					'If-Unmodified-Since' => date( 'r', intval( $this->params['ts'] ) ),
 					'Cache-control' => 'no-cache'
 				)
 			);
