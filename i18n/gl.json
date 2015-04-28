@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"Elisardojm"
+		]
+	},
+	"restbaseupdatejobs-desc": "Unha extensión para actualizar o servizo de API de RESTBase con revisión de cambios"
+}
