@@ -14,7 +14,7 @@
 class RestbaseUpdateJob extends Job {
 
 
-	function __construct( $title, $params, $id = 0 ) {
+	function __construct( Title $title, array $params, $id = 0 ) {
 
 		// Map old jobs to new 'OnEdit' jobs
 		if ( !isset( $params['type'] ) ) {
