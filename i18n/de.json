@@ -6,5 +6,5 @@
 			"Purodha"
 		]
 	},
-	"restbaseupdatejobs-desc": "Eine Erweiterung zum Aktualisieren des RESTBase-API-Dienstes mit Versionsänderungen"
+	"restbaseupdatejobs-desc": "Aktualisiert die Kopie von Wikiseiten im RESTBase-API-Dienst und folgt neuen Bearbeitungen"
 }
