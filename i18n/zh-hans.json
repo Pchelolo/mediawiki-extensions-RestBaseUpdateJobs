@@ -4,5 +4,5 @@
 			"Liuxinyu970226"
 		]
 	},
-	"restbaseupdatejobs-desc": "用于通过修订更改更新RESTBase API服务的扩展"
+	"restbaseupdatejobs-desc": "在RESTBase API服务中更新wiki页面的拷贝，跟随新编辑"
 }
