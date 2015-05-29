@@ -14,7 +14,7 @@ class RestbaseUpdateHooks {
 	 * @param string $type the job type (OnEdit or OnDependencyChange)
 	 * @param string $table (optional for OnDependencyChange, templatelinks or
 	 * imagelinks)
-	 * @return Array
+	 * @return array
 	 */
 	private static function getJobParams( Title $title, $type, $table = null ) {
 
@@ -44,22 +44,31 @@ class RestbaseUpdateHooks {
 		if ( $title->getNamespace() == NS_FILE ) {
 			// File. For now we assume the actual image or file has
 			// changed, not just the description page.
-			$params = self::getJobParams( $title, 'OnDependencyChange', 'imagelinks' );
-			$job = new RestbaseUpdateJob( $title, $params );
-			JobQueueGroup::singleton()->push( $job );
-			JobQueueGroup::singleton()->deduplicateRootJob( $job );
+			$depJob = new RestbaseUpdateJob(
+				$title,
+				self::getJobParams( $title, 'OnDependencyChange', 'imagelinks' )
+			);
+			JobQueueGroup::singleton()->push( $depJob );
+			JobQueueGroup::singleton()->deduplicateRootJob( $depJob );
 		} else {
+			$jobs = array();
 			// Push one job for the page itself
-			$params = self::getJobParams( $title, 'OnEdit' )
-				+ array( 'mode' => $action ) + $extra_params;
-			JobQueueGroup::singleton()->push( new RestbaseUpdateJob( $title, $params ) );
+			$jobs[] = new RestbaseUpdateJob(
+				$title,
+				self::getJobParams( $title, 'OnEdit' ) +
+					array( 'mode' => $action ) +
+					$extra_params
+			);
 			// and one for pages transcluding this page.
-			$params = self::getJobParams( $title, 'OnDependencyChange', 'templatelinks' );
-			$job = new RestbaseUpdateJob( $title, $params );
-			JobQueueGroup::singleton()->push( $job );
-			JobQueueGroup::singleton()->deduplicateRootJob( $job );
-		}
+			$depJob = new RestbaseUpdateJob(
+				$title,
+				self::getJobParams( $title, 'OnDependencyChange', 'templatelinks' )
+			);
+			$jobs[] = $depJob;
 
+			JobQueueGroup::singleton()->push( $jobs );
+			JobQueueGroup::singleton()->deduplicateRootJob( $depJob );
+		}
 	}
 
 
