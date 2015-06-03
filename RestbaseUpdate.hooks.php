@@ -48,8 +48,7 @@ class RestbaseUpdateHooks {
 				$title,
 				self::getJobParams( $title, 'OnDependencyChange', 'imagelinks' )
 			);
-			JobQueueGroup::singleton()->push( $depJob );
-			JobQueueGroup::singleton()->deduplicateRootJob( $depJob );
+			JobQueueGroup::singleton()->lazyPush( $depJob );
 		} else {
 			$jobs = array();
 			// Push one job for the page itself
@@ -66,8 +65,7 @@ class RestbaseUpdateHooks {
 			);
 			$jobs[] = $depJob;
 
-			JobQueueGroup::singleton()->push( $jobs );
-			JobQueueGroup::singleton()->deduplicateRootJob( $depJob );
+			JobQueueGroup::singleton()->lazyPush( $jobs );
 		}
 	}
 
