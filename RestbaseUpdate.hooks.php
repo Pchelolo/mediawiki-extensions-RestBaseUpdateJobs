@@ -46,8 +46,7 @@ class RestbaseUpdateHooks {
 			// changed, not just the description page.
 			$params = self::getJobParams( $title, 'OnDependencyChange', 'imagelinks' );
 			$job = new RestbaseUpdateJob( $title, $params );
-			JobQueueGroup::singleton()->push( $job );
-			JobQueueGroup::singleton()->deduplicateRootJob( $job );
+			JobQueueGroup::singleton()->lazyPush( $depJob );
 		} else {
 			// Push one job for the page itself
 			$params = self::getJobParams( $title, 'OnEdit' )
@@ -56,8 +55,7 @@ class RestbaseUpdateHooks {
 			// and one for pages transcluding this page.
 			$params = self::getJobParams( $title, 'OnDependencyChange', 'templatelinks' );
 			$job = new RestbaseUpdateJob( $title, $params );
-			JobQueueGroup::singleton()->push( $job );
-			JobQueueGroup::singleton()->deduplicateRootJob( $job );
+			JobQueueGroup::singleton()->lazyPush( $jobs );
 		}
 
 	}
