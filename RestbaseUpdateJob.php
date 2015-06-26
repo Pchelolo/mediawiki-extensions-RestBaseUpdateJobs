@@ -128,11 +128,11 @@ class RestbaseUpdateJob extends Job {
 			// b) this is some type of a page edit
 
 			if ( $this->params['mode'] === 'rev_visibility') {
-                $this->signalRevChange();
-            } else if ($this->params['mode'] === 'delete') {
-                $this->signalDeletedChange();
+                            $this->signalRevChange();
+                        } else if ($this->params['mode'] === 'delete') {
+                            $this->signalDeletedChange();
 			} else {
-				$this->invalidateTitle();
+			    $this->invalidateTitle();
 			}
 		} elseif ( $this->params['type'] === 'OnDependencyChange' ) {
 			// recursive update of linked pages
