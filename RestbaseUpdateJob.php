@@ -90,6 +90,11 @@ class RestbaseUpdateJob extends Job {
 
 	}
 
+    private static function getTitleLatestRevisionURL(Title $title) {
+        return implode( '/', array( self::getRestbasePrefix(), 'page',
+            'title', urlencode( $title->getPrefixedDBkey() ), 'latest') );
+    }
+
 
 	/**
 	 * Gets the info needed to determine equality between two jobs.
@@ -121,8 +126,11 @@ class RestbaseUpdateJob extends Job {
 			// there are two cases here:
 			// a) this is a rev_visibility action
 			// b) this is some type of a page edit
-			if ( $this->params['mode'] === 'rev_visibility' ) {
-				$this->signalRevChange();
+
+			if ( $this->params['mode'] === 'rev_visibility') {
+                $this->signalRevChange();
+            } else if ($this->params['mode'] === 'delete') {
+                $this->signalDeletedChange();
 			} else {
 				$this->invalidateTitle();
 			}
@@ -227,8 +235,26 @@ class RestbaseUpdateJob extends Job {
 		$this->dispatchRequests( $requests );
 
 		return $this->getLastError() == null;
-
 	}
+
+	/**
+	 * Signals to RESTBase a page was deleted
+	 */
+    protected function signalDeletedChange() {
+        $title = $this->title;
+
+        // construct the requests
+        $requests = array( array(
+            'method' => 'GET',
+            'url' => self::getTitleLatestRevisionURL( $title )
+        ) );
+
+        // dispatch the requests
+        //wfDebug( "RestbaseUpdateJob::signalRevChange: " . json_encode( $requests ) . "\n" );
+        $this->dispatchRequests( $requests );
+
+        return $this->getLastError() == null;
+    }
 
 
 	/**
